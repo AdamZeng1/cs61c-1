@@ -29,7 +29,7 @@ class YelpClassifier(object):
     ######################################################
     ################# PYSPARK FUNCTIONS ##################
     ######################################################
-    
+
     def calculate_likelihoods(self, train_rdd):
 
         # Given the reviews in train_rdd, calculates P(word | num_stars) for every word found in a review,
@@ -43,13 +43,13 @@ class YelpClassifier(object):
         # 3. ((num_stars, word_in_review), num_reviews_with_word_and_stars) --> (num_stars, {word : probability_in_review_of_num_stars})
         # 4. (num_stars, {word1 : prob1, word2 : prob2, word3 : prob3...})
 
-        raise NotImplementedError()
-
         class_likelihoods = train_rdd \
-                            # ._____(_____) \
-                            # ._____(_____) \
-                            # ._____(_____) \
-                            # ._____(_____)
+                              .flatMap(self.review_to_word_counts) \
+                              .reduceByKey(self.add_review_counts) \
+                              .map(self.counts_to_probabilities) \
+                              .aggregateByKey({},
+                                              self.combine_probability_tables,
+                                              self.combine_probability_tables)
 
         LIKELIHOODS = {}
         for num_stars, likelihood in class_likelihoods.collect():
@@ -65,12 +65,9 @@ class YelpClassifier(object):
         # 1. (review_id, num_stars, review_text_as_string) --> (num_stars, (1, num_words))
         # 2. (num_stars, (1, num_words)), (num_stars, (1, num_words)) --> (num_stars, (num_reviews_of_num_stars, num_words_total_of_num_stars))
 
-        raise NotImplementedError()
-
         num_reviews_words_per_num_stars = train_rdd \
-                                            # ._____(_____) \
-                                            # ._____(_____) 
-
+                                            .map(self.review_to_num_stars_num_words) \
+                                            .reduceByKey(self.add_review_and_word_counts)
 
         NUM_REVIEWS = {}
         NUM_WORDS = {}
@@ -105,13 +102,13 @@ class YelpClassifier(object):
         # 6. (review_id, (num_stars1, log_posterior1)), (review_id, (num_stars2, log_posterior2)) --> (review_id, (num_stars, max_posterior)
 
         predictions = test_rdd \
-                            # ._____(_____) \
-                            # ._____(_____) \
-                            # ._____(_____) \
-                            # ._____(_____) \
-                            # ._____(_____) \
-                            # ._____(_____) \
-                            .sortByKey()
+                        .flatMap(self.review_to_num_stars_and_word_pairs) \
+                        .map(self.words_to_log_likelihoods) \
+                        .reduceByKey(self.add_log_likelihoods) \
+                        .map(self.likelihood_to_posterior) \
+                        .map(self.review_id_only_as_key) \
+                        .reduceByKey(self.find_max_posterior) \
+                        .sortByKey()
 
         return predictions
 
@@ -133,8 +130,11 @@ class YelpClassifier(object):
 
         # (review_id, num_stars, review_text_as_string) --> [((num_stars, word_in_review_1), 1), ((num_stars, word_in_review_2), 1), ...]
 
-        raise NotImplementedError()
-        
+        star = review[1]
+        review_text = review[2]
+        review_words = review_text.split()
+        return [((star, w), 1) for w in review_words]
+
     @staticmethod
     def add_review_counts(count1, count2):
 
@@ -142,15 +142,15 @@ class YelpClassifier(object):
 
         # ((num_stars, word_in_review), 1), ((num_stars, word_in_review), 1) --> ((num_stars, word_in_review), num_reviews_of_num_stars_with_word)
 
-        raise NotImplementedError()
+        return count1 + count2
 
     def compute_likelihood(self, count_of_word, num_stars):
 
         # Helper function to compute the likelihood of a word with Laplace smoothing
 
         probability = float((count_of_word + 1)) / float((self.NUM_WORDS[num_stars] + 1))
-        return probability  
-    
+        return probability
+
     def counts_to_probabilities(self, num_stars_and_word_counts):
 
         # Maps the count of a word, over reviews of the same number of stars,
@@ -158,7 +158,11 @@ class YelpClassifier(object):
 
         # ((num_stars, word_in_review), num_reviews_with_word_and_stars) --> (num_stars, {word : probability_in_review_of_num_stars})
 
-        raise NotImplementedError()
+        star = int(num_stars_and_word_counts[0][0])
+        word = num_stars_and_word_counts[0][1]
+        count = num_stars_and_word_counts[1]
+        likelihood = {word: self.compute_likelihood(count, star)}
+        return (star, likelihood)
 
     def combine_probability_tables(self, word1_and_probability, word2_and_probability):
 
@@ -170,7 +174,7 @@ class YelpClassifier(object):
         return word1_and_probability
 
     # ____________calculate_num_reviews_per_num_stars() helpers________ #
-    
+
     @staticmethod
     def review_to_num_stars_num_words(review):
 
@@ -179,7 +183,10 @@ class YelpClassifier(object):
 
         # (review_id, num_stars, review_text_as_string) --> (num_stars, (1, num_words))
 
-        raise NotImplementedError()
+        star = review[1]
+        review_text = review[2]
+        review_words = review_text.split()
+        return (star, (1, len(review_words)))
 
     @staticmethod
     def add_review_and_word_counts(count1, count2):
@@ -188,7 +195,9 @@ class YelpClassifier(object):
 
         # (num_stars, (1, num_words)), (num_stars, (1, num_words)) --> (num_stars, (num_reviews_of_num_stars, num_words_total_of_num_stars))
 
-        raise NotImplementedError()
+        num_reviews = count1[0] + count2[0]
+        num_words = count1[1] + count2[1]
+        return (num_reviews, num_words)
 
     # _________________________________________________________ #
     # ____________CLASSIFICATION HELPERS_______________________ #
@@ -272,6 +281,12 @@ class YelpClassifier(object):
 
         # (review_id, (num_stars1, log_posterior1)), (review_id, (num_stars2, log_posterior2)) --> (review_id, (num_stars, max_posterior))
 
-        raise NotImplementedError()
+        star1 = num_stars_posterior1[0]
+        log_posterior1 = num_stars_posterior1[1]
+        star2 = num_stars_posterior2[0]
+        log_posterior2 = num_stars_posterior2[1]
 
-
+        if log_posterior1 > log_posterior2:
+            return (star1, log_posterior1)
+        else:
+            return (star2, log_posterior2)
