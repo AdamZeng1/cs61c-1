@@ -55,7 +55,28 @@ long long int sum_simd(unsigned int vals[NUM_ELEMS]) {
 											// DO NOT DO NOT DO NOT DO NOT WRITE ANYTHING ABOVE THIS LINE.
 	for(unsigned int w = 0; w < OUTER_ITERATIONS; w++) {
 		/* YOUR CODE GOES HERE */
+		int sums[4];
+		__m128i partial = _mm_set1_epi32(0);
+		unsigned int num_blocks = NUM_ELEMS >> 2;
 
+		for (unsigned int block = 0; block < num_blocks; ++block) {
+			__m128i data = _mm_loadu_si128((__m128i *) (vals + (block << 2)));
+			__m128i mark = _mm_cmpgt_epi32(data, _127);
+			partial = _mm_add_epi32(partial, _mm_and_si128(data, mark));
+		}
+
+		_mm_storeu_si128((__m128i *) sums, partial);
+		for (unsigned int i = 0; i < 4; ++i) {
+			result += sums[i];
+		}
+
+		unsigned int num_left = NUM_ELEMS - (((NUM_ELEMS) >> 2) << 2);
+		for (unsigned int i = 0; i < num_left; i++) {
+			int num = vals[(num_blocks << 2) + i];
+			if (num > 127) {
+				result += num;
+			}
+		}
 		/* You'll need a tail case. */
 
 	}
