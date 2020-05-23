@@ -57,10 +57,12 @@ long long int sum_simd(unsigned int vals[NUM_ELEMS]) {
 		/* YOUR CODE GOES HERE */
 		int sums[4];
 		__m128i partial = _mm_set1_epi32(0);
-		unsigned int num_blocks = NUM_ELEMS >> 2;
+		const unsigned int block_size = 4;
+		unsigned int num_blocks = NUM_ELEMS / block_size;
 
 		for (unsigned int block = 0; block < num_blocks; ++block) {
-			__m128i data = _mm_loadu_si128((__m128i *) (vals + (block << 2)));
+			unsigned int *block_start = vals + (block << 2);
+			__m128i data = _mm_loadu_si128((__m128i *) block_start);
 			__m128i mark = _mm_cmpgt_epi32(data, _127);
 			partial = _mm_add_epi32(partial, _mm_and_si128(data, mark));
 		}
@@ -70,9 +72,8 @@ long long int sum_simd(unsigned int vals[NUM_ELEMS]) {
 			result += sums[i];
 		}
 
-		unsigned int num_left = NUM_ELEMS - (((NUM_ELEMS) >> 2) << 2);
-		for (unsigned int i = 0; i < num_left; i++) {
-			int num = vals[(num_blocks << 2) + i];
+		for (unsigned int i = (NUM_ELEMS >> 2) << 2; i < NUM_ELEMS; ++i) {
+			unsigned int num = vals[i];
 			if (num > 127) {
 				result += num;
 			}
@@ -92,7 +93,51 @@ long long int sum_simd_unrolled(unsigned int vals[NUM_ELEMS]) {
 	for(unsigned int w = 0; w < OUTER_ITERATIONS; w++) {
 		/* COPY AND PASTE YOUR sum_simd() HERE */
 		/* MODIFY IT BY UNROLLING IT */
+		const unsigned int BLOCK_SIZE = 32;
+		int sums[4];
+		__m128i partial = _mm_set1_epi32(0);
+		unsigned int num_blocks = NUM_ELEMS / BLOCK_SIZE;
 
+		for (unsigned block = 0; block < num_blocks; ++block) {
+			unsigned int *block_start = vals + block * BLOCK_SIZE;
+			__m128i sub_block1 = _mm_loadu_si128((__m128i *) block_start);
+			__m128i mark1 = _mm_cmpgt_epi32(sub_block1, _127);
+			__m128i sub_block2 = _mm_loadu_si128((__m128i *) (block_start + 4));
+			__m128i mark2 = _mm_cmpgt_epi32(sub_block2, _127);
+			__m128i sub_block3 = _mm_loadu_si128((__m128i *) (block_start + 8));
+			__m128i mark3 = _mm_cmpgt_epi32(sub_block3, _127);
+			__m128i sub_block4 = _mm_loadu_si128((__m128i *) (block_start + 12));
+			__m128i mark4 = _mm_cmpgt_epi32(sub_block4, _127);
+			__m128i sub_block5 = _mm_loadu_si128((__m128i *) (block_start + 16));
+			__m128i mark5 = _mm_cmpgt_epi32(sub_block5, _127);
+			__m128i sub_block6 = _mm_loadu_si128((__m128i *) (block_start + 20));
+			__m128i mark6 = _mm_cmpgt_epi32(sub_block6, _127);
+			__m128i sub_block7 = _mm_loadu_si128((__m128i *) (block_start + 24));
+			__m128i mark7 = _mm_cmpgt_epi32(sub_block7, _127);
+			__m128i sub_block8 = _mm_loadu_si128((__m128i *) (block_start + 28));
+			__m128i mark8 = _mm_cmpgt_epi32(sub_block8, _127);
+
+			partial = _mm_add_epi32(partial, _mm_and_si128(sub_block1, mark1));
+			partial = _mm_add_epi32(partial, _mm_and_si128(sub_block2, mark2));
+			partial = _mm_add_epi32(partial, _mm_and_si128(sub_block3, mark3));
+			partial = _mm_add_epi32(partial, _mm_and_si128(sub_block4, mark4));
+			partial = _mm_add_epi32(partial, _mm_and_si128(sub_block5, mark5));
+			partial = _mm_add_epi32(partial, _mm_and_si128(sub_block6, mark6));
+			partial = _mm_add_epi32(partial, _mm_and_si128(sub_block7, mark7));
+			partial = _mm_add_epi32(partial, _mm_and_si128(sub_block8, mark8));
+		}
+
+		_mm_storeu_si128((__m128i *) sums, partial);
+		for (unsigned int i = 0; i < 4; ++i) {
+			result += sums[i];
+		}
+
+		for (unsigned int start = NUM_ELEMS / BLOCK_SIZE * BLOCK_SIZE; start < NUM_ELEMS; ++start) {
+			unsigned int num = vals[start];
+			if (num > 127) {
+				result += vals[start];
+			}
+		}
 		/* You'll need 1 or maybe 2 tail cases here. */
 
 	}
