@@ -1,10 +1,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <omp.h>
+#include <math.h>
 
 #define ARRAY_SIZE 10000000
 #define REPEAT     100
-
+#define CACHE_LINE_SUZE (1 << 11)
+#define CHUNK_SIZE (CACHE_LINE_SUZE / sizeof(double))
 
 void v_add_naive(double* x, double* y, double* z) {
 	#pragma omp parallel
@@ -18,17 +20,33 @@ void v_add_naive(double* x, double* y, double* z) {
 void v_add_optimized_adjacent(double* x, double* y, double* z) {
      #pragma omp parallel
 	{
-		for(int i=0; i<ARRAY_SIZE; i++)
+		int num_threads = omp_get_num_threads();
+		int thread_id = omp_get_thread_num();
+
+		for(int i = thread_id; i < ARRAY_SIZE; i += num_threads) {
 			z[i] = x[i] + y[i];
+		}
 	}
 }
 
 // Edit this function (Method 2) 
 void v_add_optimized_chunks(double* x, double* y, double* z) {
-          #pragma omp parallel
+	int num_chunks = (int) ceil((double) ARRAY_SIZE / CHUNK_SIZE);
+
+    #pragma omp parallel
 	{
-		for(int i=0; i<ARRAY_SIZE; i++)
-			z[i] = x[i] + y[i];
+		int num_threads = omp_get_num_threads();
+		int thread_id = omp_get_thread_num();
+
+		for (int chunk = thread_id; chunk < num_chunks; chunk += num_threads) {
+			int start = chunk * CHUNK_SIZE;
+			int end = start + CHUNK_SIZE;
+			end = end > ARRAY_SIZE ? ARRAY_SIZE : end;
+			while (start < end) {
+				z[start] = x[start] + y[start];
+				++start;
+			}
+		}
 	}
 }
 
@@ -52,7 +70,6 @@ int verify(double* x, double* y, void(*funct)(double *x, double *y, double *z)) 
 	return 1;
 }
 
-
 int main() {
 	// Generate input vectors and destination vector
 	double *x = gen_array(ARRAY_SIZE);
@@ -63,43 +80,45 @@ int main() {
 	double start_time, run_time;
 	int num_threads = omp_get_max_threads();	
 
-
 	for(int i=1; i<=num_threads; i++) {
-		omp_set_num_threads(i);		
-	  start_time = omp_get_wtime();
+		omp_set_num_threads(i);
+	    start_time = omp_get_wtime();
 		for(int j=0; j<REPEAT; j++)
 			v_add_optimized_adjacent(x,y,z);
 		run_time = omp_get_wtime() - start_time;
-    if(!verify(x,y, v_add_optimized_adjacent)){
-      printf("v_add optimized adjacent does not match oracle\n");
-      return -1; 
-    }
-    printf("Optimized adjacent: %d thread(s) took %f seconds\n",i,run_time);
-  }
 
+		if(!verify(x,y, v_add_optimized_adjacent)){
+			printf("v_add optimized adjacent does not match oracle\n");
+			return -1; 
+		}
+		printf("Optimized adjacent: %d thread(s) took %f seconds\n",i,run_time);
+    }
 
 	for(int i=1; i<=num_threads; i++) {
-		omp_set_num_threads(i);		
-	  start_time = omp_get_wtime();
+		omp_set_num_threads(i);
+	    start_time = omp_get_wtime();
 		for(int j=0; j<REPEAT; j++)
 			v_add_optimized_chunks(x,y,z);
 		run_time = omp_get_wtime() - start_time;
-    if(!verify(x,y, v_add_optimized_chunks)){
-      printf("v_add optimized chunks does not match oracle\n");
-      return -1; 
+
+		if(!verify(x,y, v_add_optimized_chunks)){
+			printf("v_add optimized chunks does not match oracle\n");
+			return -1;
+		}
+        printf("Optimized chunks: %d thread(s) took %f seconds\n",i,run_time);
     }
-    printf("Optimized chunks: %d thread(s) took %f seconds\n",i,run_time);
-  }
 
 	for(int i=1; i<=num_threads; i++) {
-		omp_set_num_threads(i);		
+		omp_set_num_threads(i);
 		start_time = omp_get_wtime();
 		for(int j=0; j<REPEAT; j++)
 			v_add_naive(x,y,z);
 		run_time = omp_get_wtime() - start_time;
-  	printf("Naive: %d thread(s) took %f seconds\n",i,run_time);
-  }
-  return 0;
-}
- 
+  	    printf("Naive: %d thread(s) took %f seconds\n",i,run_time);
+    }
 
+    free(x);
+    free(y);
+    free(z);
+    return 0;
+}
