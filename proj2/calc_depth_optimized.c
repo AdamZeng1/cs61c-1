@@ -41,6 +41,7 @@ void calc_depth_optimized(float *depth, float *left, float *right,
     const int box_width = (feature_width << 1) + 1;
     const int box_height = (feature_height << 1) + 1;
 
+    # pragma omp parallel for collapse(1)
     for (int y = 0; y < image_height; y++) {
         for (int x = 0; x < image_width; x++) {
             int left_box_x = x - feature_width;
