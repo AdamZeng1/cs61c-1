@@ -192,6 +192,27 @@ This file is intended to be loaded by Logisim-evolution (https://github.com/reds
     <a name="clabelfont" val="SansSerif plain 12"/>
     <a name="circuitnamedbox" val="false"/>
     <a name="circuitvhdlpath" val=""/>
+    <wire from="(550,110)" to="(550,120)"/>
+    <wire from="(550,110)" to="(600,110)"/>
+    <wire from="(240,150)" to="(240,250)"/>
+    <wire from="(240,150)" to="(300,150)"/>
+    <wire from="(170,100)" to="(220,100)"/>
+    <wire from="(390,210)" to="(700,210)"/>
+    <wire from="(530,150)" to="(530,250)"/>
+    <wire from="(700,110)" to="(700,210)"/>
+    <wire from="(660,110)" to="(700,110)"/>
+    <wire from="(700,110)" to="(740,110)"/>
+    <wire from="(160,250)" to="(240,250)"/>
+    <wire from="(530,150)" to="(600,150)"/>
+    <wire from="(170,140)" to="(180,140)"/>
+    <wire from="(390,130)" to="(390,210)"/>
+    <wire from="(180,120)" to="(180,140)"/>
+    <wire from="(390,130)" to="(470,130)"/>
+    <wire from="(360,110)" to="(470,110)"/>
+    <wire from="(180,120)" to="(220,120)"/>
+    <wire from="(260,110)" to="(300,110)"/>
+    <wire from="(240,250)" to="(530,250)"/>
+    <wire from="(510,120)" to="(550,120)"/>
     <comp lib="0" loc="(170,100)" name="Pin">
       <a name="width" val="8"/>
       <a name="label" val="In2"/>
@@ -200,15 +221,19 @@ This file is intended to be loaded by Logisim-evolution (https://github.com/reds
       <a name="width" val="8"/>
       <a name="label" val="In3"/>
     </comp>
-    <comp lib="0" loc="(500,140)" name="Pin">
+    <comp lib="0" loc="(160,250)" name="Pin">
+      <a name="label" val="CLK"/>
+    </comp>
+    <comp lib="3" loc="(260,110)" name="Multiplier"/>
+    <comp lib="4" loc="(300,80)" name="Register"/>
+    <comp lib="3" loc="(510,120)" name="Adder"/>
+    <comp lib="4" loc="(600,80)" name="Register"/>
+    <comp lib="0" loc="(740,110)" name="Pin">
       <a name="facing" val="west"/>
       <a name="output" val="true"/>
       <a name="width" val="8"/>
       <a name="label" val="Pipelined_Out"/>
       <a name="labelloc" val="east"/>
-    </comp>
-    <comp lib="0" loc="(160,250)" name="Pin">
-      <a name="label" val="CLK"/>
     </comp>
   </circuit>
 </project>
